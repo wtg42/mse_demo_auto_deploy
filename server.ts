@@ -1,0 +1,272 @@
+import { serve } from "https://deno.land/std@0.166.0/http/server.ts";
+import * as fs from "https://deno.land/std@0.166.0/fs/mod.ts";
+import { readLines } from "https://deno.land/std@0.166.0/io/buffer.ts";
+
+// 監聽 port
+const port = 8080;
+
+/**
+ * serve handle function
+ * @param req request from client
+ * @returns websocket response
+ */
+const handler = (req: Request): Response => {
+  // 檢查觸發訊息
+  if (req.headers.get("upgrade") != "websocket") {
+    return new Response(null, { status: 501 });
+  }
+
+  // first phase
+  addEventListener("empty_dir", () => {
+    // const result = await exeEmptyDir();
+    // ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
+    ws.send("empty_dir_done")
+  });
+
+  // second phase
+  addEventListener("composer_update", async () => {
+    const result = await exeComposerCmd(ws);
+    ws.send((result == 0) ? "composer_update_done" : "composer_update_failed");
+  });
+
+  addEventListener("php_artisan", async () => {
+    let result = await exeArtisanCmds(ws);
+    result = await chgPermission(ws);
+    ws.send((result == 0) ? "php_artisan_done" : "php_artisan_failed");
+  });
+
+  const { socket: ws, response } = Deno.upgradeWebSocket(req);
+  ws.onopen = () => console.log("Connected to client ...");
+  ws.onmessage = (m) => handleMessage(ws, m.data);
+  ws.onerror = (e) => console.log(e);
+
+  return response;
+};
+
+console.log(`HTTP webserver running. Access it at: ws://192.168.91.76:8080/`);
+await serve(handler, { port });
+
+/**
+ * onmessage hendler trigger
+ * @param _ws WebSocket instance
+ * @param data client's message is used to trigger event
+ */
+function handleMessage(_ws: WebSocket, data: string) {
+  console.log("EVENT START >> " + data);
+  /** 這裡會觸發流程 empty_dir | composer_update | php_artisan */
+  dispatchEvent(new Event(data));
+}
+
+/**
+ * 清空資料夾
+ * @returns 0:success 1:failed
+ */
+async function exeEmptyDir(): Promise<number> {
+  // 切換到產品目錄
+  Deno.chdir("/usr/local/share/apache");
+  const cwd = Deno.cwd().trim();
+  if (cwd != "/usr/local/share/apache") {
+    return 1;
+  }
+
+  // 解鎖產品目錄中上鎖檔案
+  const p = Deno.run({
+    cmd: [
+      "find",
+      "/usr/local/share/apache",
+      "-flags",
+      "+sunlink",
+      "-exec",
+      "/bin/chflags",
+      "nosunlink",
+      "{}",
+      "\;",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  });
+  p.stdin?.write(new TextEncoder().encode("yes\n"));
+  const pOutput = new TextDecoder().decode(await p.output());
+  console.log(pOutput);
+  const ps = await p.status();
+  console.table(ps);
+
+  if (ps.code != 0 && !ps.success) {
+    p.close();
+    return 1;
+  }
+  p.close();
+  await fs.emptyDir("/usr/local/share/apache");
+  return 0;
+}
+
+/**
+ * execute composer update command
+ * @returns 0:success 1:failed
+ */
+async function exeComposerCmd(ws: WebSocket): Promise<number> {
+  // 切換到產品目錄
+  Deno.chdir("/usr/local/share/apache");
+  const cwd = Deno.cwd().trim();
+  if (cwd != "/usr/local/share/apache") {
+    return 1;
+  }
+  const p = Deno.run({
+    cmd: [
+      "composer",
+      "update",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+    stdin: "piped",
+  });
+
+  // composer update be executed by root will ask for confirm
+  p.stdin.write(new TextEncoder().encode("yes\n"));
+
+  for await (const l of readLines(p.stderr)) {
+    ws.send(l);
+  }
+
+  const pOutput = new TextDecoder().decode(await p.output());
+  console.log(pOutput);
+
+  const ps = await p.status();
+  console.table(ps);
+  if (ps.code != 0 && !ps.success) {
+    p.close();
+    return 1;
+  }
+  p.close();
+  return 0;
+}
+
+/**
+ * execute php artisan command(key, jwt, i18n)
+ * @returns 1 | 0
+ */
+async function exeArtisanCmds(ws: WebSocket): Promise<number> {
+  // 切換到產品目錄
+  Deno.chdir("/usr/local/share/apache");
+  const cwd = Deno.cwd().trim();
+  if (cwd != "/usr/local/share/apache") {
+    return 1;
+  }
+  const keyCmd = Deno.run({
+    cmd: [
+      "php",
+      "artisan",
+      "key:generate",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+    stdin: "piped",
+  });
+
+  const keyOutput = new TextDecoder().decode(await keyCmd.output());
+  ws.send(keyOutput);
+
+  const keyStatus = await keyCmd.status();
+  console.table(keyStatus);
+  if (keyStatus.code != 0 && !keyStatus.success) {
+    keyCmd.close();
+    return 1;
+  }
+  keyCmd.close();
+
+  const jwtCmd = Deno.run({
+    cmd: [
+      "php",
+      "artisan",
+      "jwt:secret",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+    stdin: "piped",
+  });
+
+  const jwtOutput = new TextDecoder().decode(await jwtCmd.output());
+  ws.send(jwtOutput);
+
+  const jwtStatus = await jwtCmd.status();
+  console.table(jwtStatus);
+  if (jwtStatus.code != 0 && !jwtStatus.success) {
+    jwtCmd.close();
+    return 1;
+  }
+  jwtCmd.close();
+
+  const i18nCmd = Deno.run({
+    cmd: [
+      "php",
+      "artisan",
+      "i18n:make",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+    stdin: "piped",
+  });
+
+  const i18nOutput = new TextDecoder().decode(await i18nCmd.output());
+  ws.send(i18nOutput);
+
+  const i18nStatus = await i18nCmd.status();
+  console.table(i18nStatus);
+  if (i18nStatus.code != 0 && !i18nStatus.success) {
+    i18nCmd.close();
+    return 1;
+  }
+  i18nCmd.close();
+  console.log("yayaya")
+  return 0;
+}
+
+async function chgPermission(ws: WebSocket): Promise<number> {
+  ws.send("changing file permission...");
+  console.log("changing file permission...")
+  const workingPath = "/usr/local/share/apache";
+  await loopDir.call(ws, workingPath);
+  // 執行 chg_privilege.sh
+  Deno.chdir("/usr/local/share/apache/htdocs/snmsqr/shell");
+  const cwd = Deno.cwd().trim();
+  if (cwd != "/usr/local/share/apache/htdocs/snmsqr/shell") {
+    return 1;
+  }
+  const chgCmd = Deno.run({
+    cmd: [
+      "sh",
+      "chg_privilege.sh",
+      ">",
+      "/dev/null",
+      "2>&1",
+    ],
+    stdout: "null",
+    stderr: "null",
+  });
+  // for await (const l of readLines(chgCmd.stdout)) {
+  //   console.log("121212::", l);
+  // }
+  // const chgOutput = new TextDecoder().decode(await chgCmd.output());
+  // console.log(chgOutput);
+  const chgStatus = await chgCmd.status();
+  console.table(chgStatus);
+  ws.send("exit")
+  return 0;
+}
+
+/**
+ * @param targetPath
+ */
+async function loopDir(targetPath: string): Promise<void> {
+  for await (const dirEntry of Deno.readDir(targetPath)) {
+    const file = targetPath + "/" + dirEntry.name;
+    /** @ts-ignore */
+    const ws = this as WebSocket;
+    ws.send(file);
+    await Deno.chown(file, 65534, 7);
+    await Deno.chmod(file, 0o750);
+    if (dirEntry.isDirectory) {
+      await loopDir.call(ws, file);
+    }
+  }
+}
