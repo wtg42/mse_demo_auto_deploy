@@ -17,10 +17,9 @@ const handler = (req: Request): Response => {
   }
 
   // first phase
-  addEventListener("empty_dir", () => {
-    // const result = await exeEmptyDir();
-    // ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
-    ws.send("empty_dir_done")
+  addEventListener("empty_dir", async () => {
+    const result = await exeEmptyDir();
+    ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
   });
 
   // second phase
@@ -217,13 +216,48 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
     return 1;
   }
   i18nCmd.close();
-  console.log("yayaya")
+  console.log("yayaya");
   return 0;
 }
 
+async function generatePwrapper(ws: WebSocket): Promise<void> {
+  ws.send("generating system's privilege binary...");
+  Deno.chdir("/usr/local/share/apache/htdocs/snmsqr/shell");
+  const pwCmd = Deno.run({
+    cmd: [
+      "cc",
+      "-o",
+      "pwrapper",
+      "pwrapper.c",
+    ],
+  });
+  console.log(await pwCmd.status());
+
+  const haltCmd = Deno.run({
+    cmd: [
+      "cc",
+      "-o",
+      "halt",
+      "halt.c",
+    ],
+  });
+  console.log(await haltCmd.status());
+
+  const rebootCmd = Deno.run({
+    cmd: [
+      "cc",
+      "-o",
+      "reboot",
+      "reboot.c",
+    ],
+  });
+  console.log(await rebootCmd.status());
+}
+
 async function chgPermission(ws: WebSocket): Promise<number> {
+  await generatePwrapper(ws);
   ws.send("changing file permission...");
-  console.log("changing file permission...")
+
   const workingPath = "/usr/local/share/apache";
   await loopDir.call(ws, workingPath);
   // 執行 chg_privilege.sh
@@ -250,7 +284,7 @@ async function chgPermission(ws: WebSocket): Promise<number> {
   // console.log(chgOutput);
   const chgStatus = await chgCmd.status();
   console.table(chgStatus);
-  ws.send("exit")
+  ws.send("exit");
   return 0;
 }
 

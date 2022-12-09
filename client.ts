@@ -1,3 +1,5 @@
+import { copy } from "https://deno.land/std@0.166.0/streams/conversion.ts";
+
 /**
  * 檢查目前的 path 並轉到正確的工作目錄
  */
@@ -20,17 +22,17 @@ const go2GitDirectory: () => void = () => {
 const executeRsync: () => Promise<number> = async () => {
   const p = Deno.run({
     cmd: [
-      "zsh",
-      "-c",
-      "rsync -avh /Users/shiweiting/side_projects/snmsqr/ root@192.168.91.61:/home/www/",
+      "rsync",
+      "-avh",
+      "./",
+      "root@192.168.91.61:/home/www/",
     ],
+    cwd: "/Users/shiweiting/side_projects/snmsqr/",
     stdout: "piped",
     stderr: "piped",
     stdin: "piped",
   });
 
-  // p.stdin.write(new TextEncoder().encode("pass!root\n"));
-  // p.stdin.write(new TextEncoder().encode("exit\n"));
   const output = await p.output();
   console.log(new TextDecoder().decode(output));
   const status = await p.status();
@@ -46,7 +48,7 @@ const executeRsync: () => Promise<number> = async () => {
 async function handleMessage(ws: WebSocket, data: string): Promise<void> {
   console.log("SERVER >> " + data);
   if (data === "exit") {
-    console.log("deploy done!")
+    console.log("deploy done!");
     ws.close();
     Deno.exit();
   }
@@ -56,6 +58,8 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
       ws.close();
       Deno.exit(1);
     }
+    ws.close();
+    Deno.exit(1);
     // starting install laravel
     ws.send("composer_update");
   }
@@ -67,10 +71,6 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
     ws.send("php_artisan");
   }
   if (data == "php_artisan_done") {
-    console.log("artisan command process done...");
-    console.log("artisan command process done...");
-    console.log("artisan command process done...");
-    console.log("artisan command process done...");
     console.log("artisan command process done...");
     ws.close();
   }
