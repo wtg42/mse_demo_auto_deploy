@@ -4,11 +4,11 @@ import { readLines } from "https://deno.land/std@0.166.0/io/buffer.ts";
 
 // 監聽 port
 const port = 8080;
+const opBuffer: string[] = [];
 
 /**
  * serve handle function
  * @param req request from client
- * @returns websocket response
  */
 const handler = (req: Request): Response => {
   // 檢查觸發訊息
@@ -16,28 +16,57 @@ const handler = (req: Request): Response => {
     return new Response(null, { status: 501 });
   }
 
+  const { ws, response } = createWebScoketConnection(req);
+  ws.onopen = () => console.log("Connected to client ...");
+  ws.onmessage = (m) => handleMessage(ws, m.data);
+  ws.onerror = (e) => {
+    console.log("00000000", e);
+    createWebScoketConnection(req);
+  };
   // first phase
   addEventListener("empty_dir", async () => {
-    const result = await exeEmptyDir();
-    ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
+    try {
+      const result = await exeEmptyDir();
+      ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
+    } catch (_error) {
+      console.log("1111111111");
+      createWebScoketConnection(req);
+    }
+  }, {
+    once: true
   });
 
   // second phase
   addEventListener("composer_update", async () => {
-    const result = await exeComposerCmd(ws);
-    ws.send((result == 0) ? "composer_update_done" : "composer_update_failed");
+    try {
+      const result = await exeComposerCmd(ws);
+      ws.send(
+        (result == 0) ? "composer_update_done" : "composer_update_failed",
+      );
+    } catch (_error) {
+      console.log("222222222");
+      createWebScoketConnection(req);
+    }
+  }, {
+    once: true
   });
 
   addEventListener("php_artisan", async () => {
-    let result = await exeArtisanCmds(ws);
-    result = await chgPermission(ws);
-    ws.send((result == 0) ? "php_artisan_done" : "php_artisan_failed");
+    try {
+      let result = await exeArtisanCmds(ws);
+      result = await chgPermission(ws);
+      ws.send((result == 0) ? "php_artisan_done" : "php_artisan_failed");
+    } catch (error) {
+      console.log("33333333");
+      createWebScoketConnection(req);
+    }
+  }, {
+    once: true
   });
 
-  const { socket: ws, response } = Deno.upgradeWebSocket(req);
-  ws.onopen = () => console.log("Connected to client ...");
-  ws.onmessage = (m) => handleMessage(ws, m.data);
-  ws.onerror = (e) => console.log(e);
+  addEventListener("connection_close", () => {
+    // ws.close();
+  });
 
   return response;
 };
@@ -84,18 +113,16 @@ async function exeEmptyDir(): Promise<number> {
     stdout: "piped",
     stderr: "piped",
   });
-  p.stdin?.write(new TextEncoder().encode("yes\n"));
-  const pOutput = new TextDecoder().decode(await p.output());
-  console.log(pOutput);
-  const ps = await p.status();
-  console.table(ps);
 
+  await p.output();
+  const ps = await p.status();
+  console.log("[nosunlink]:", ps);
+  p.close();
   if (ps.code != 0 && !ps.success) {
-    p.close();
     return 1;
   }
-  p.close();
-  await fs.emptyDir("/usr/local/share/apache");
+
+  await fs.emptyDir("/usr/local/share/apache/");
   return 0;
 }
 
@@ -124,19 +151,19 @@ async function exeComposerCmd(ws: WebSocket): Promise<number> {
   p.stdin.write(new TextEncoder().encode("yes\n"));
 
   for await (const l of readLines(p.stderr)) {
-    ws.send(l);
+    opBuffer.push(l);
   }
+  console.log("[opBuffer]:", opBuffer);
 
   const pOutput = new TextDecoder().decode(await p.output());
   console.log(pOutput);
 
   const ps = await p.status();
-  console.table(ps);
+  console.log("[composer update]:", ps);
+  p.close();
   if (ps.code != 0 && !ps.success) {
-    p.close();
     return 1;
   }
-  p.close();
   return 0;
 }
 
@@ -166,7 +193,7 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
   ws.send(keyOutput);
 
   const keyStatus = await keyCmd.status();
-  console.table(keyStatus);
+  console.log("[key:generate]", keyStatus);
   if (keyStatus.code != 0 && !keyStatus.success) {
     keyCmd.close();
     return 1;
@@ -188,12 +215,11 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
   ws.send(jwtOutput);
 
   const jwtStatus = await jwtCmd.status();
-  console.table(jwtStatus);
+  console.log("[jwt:secret]:", jwtStatus);
+  jwtCmd.close();
   if (jwtStatus.code != 0 && !jwtStatus.success) {
-    jwtCmd.close();
     return 1;
   }
-  jwtCmd.close();
 
   const i18nCmd = Deno.run({
     cmd: [
@@ -210,13 +236,12 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
   ws.send(i18nOutput);
 
   const i18nStatus = await i18nCmd.status();
-  console.table(i18nStatus);
+  console.log("[i18n:make]:", i18nStatus);
+  i18nCmd.close();
+
   if (i18nStatus.code != 0 && !i18nStatus.success) {
-    i18nCmd.close();
     return 1;
   }
-  i18nCmd.close();
-  console.log("yayaya");
   return 0;
 }
 
@@ -231,7 +256,7 @@ async function generatePwrapper(ws: WebSocket): Promise<void> {
       "pwrapper.c",
     ],
   });
-  console.log(await pwCmd.status());
+  console.log("[pwrapper]:", await pwCmd.status());
 
   const haltCmd = Deno.run({
     cmd: [
@@ -241,7 +266,7 @@ async function generatePwrapper(ws: WebSocket): Promise<void> {
       "halt.c",
     ],
   });
-  console.log(await haltCmd.status());
+  console.log("[halt]", await haltCmd.status());
 
   const rebootCmd = Deno.run({
     cmd: [
@@ -251,11 +276,13 @@ async function generatePwrapper(ws: WebSocket): Promise<void> {
       "reboot.c",
     ],
   });
-  console.log(await rebootCmd.status());
+  console.log("[reboot]", await rebootCmd.status());
 }
 
+/** Run MSE script */
 async function chgPermission(ws: WebSocket): Promise<number> {
   await generatePwrapper(ws);
+
   ws.send("changing file permission...");
 
   const workingPath = "/usr/local/share/apache";
@@ -283,13 +310,12 @@ async function chgPermission(ws: WebSocket): Promise<number> {
   // const chgOutput = new TextDecoder().decode(await chgCmd.output());
   // console.log(chgOutput);
   const chgStatus = await chgCmd.status();
-  console.table(chgStatus);
-  ws.send("exit");
+  console.log("[chg_privilege.sh]:", chgStatus);
   return 0;
 }
 
 /**
- * @param targetPath
+ * @param targetPath 修改檔案權限以及子資料夾權限
  */
 async function loopDir(targetPath: string): Promise<void> {
   for await (const dirEntry of Deno.readDir(targetPath)) {
@@ -303,4 +329,10 @@ async function loopDir(targetPath: string): Promise<void> {
       await loopDir.call(ws, file);
     }
   }
+}
+
+/** 創建 WebSocket 連線 */
+function createWebScoketConnection(req: Request) {
+  const { socket: ws, response } = Deno.upgradeWebSocket(req);
+  return { ws, response };
 }
