@@ -1,8 +1,10 @@
+// import { Output, printNewLine } from "./util.ts";
+
 /** 定義原始碼目錄 */
 const SrcPath = "/Users/shiweiting/side_projects/snmsqr";
 
 /** 定義目前執行階段 */
-let phase = 'empty_dir';
+let phase = "empty_dir";
 /**
  * 檢查目前的 path 並轉到正確的工作目錄
  */
@@ -49,8 +51,10 @@ const executeRsync: () => Promise<number> = async () => {
 };
 
 async function handleMessage(ws: WebSocket, data: string): Promise<void> {
-  // Deno.stdout.write(new TextEncoder().encode("SERVER >> " + data + "\r"));
-  // Deno.stdout.write(new TextEncoder().encode('\033[1A\x1b[2K'))
+  Deno.stdout.write(
+    new TextEncoder().encode(`SERVER >> ` + data + `\r\x1b[K`),
+  );
+  // Deno.stdout.write(new TextEncoder().encode(`\x1b[K`));
   if (data === "exit") {
     console.log("deploy done!");
     ws.send("connection_close");
@@ -64,7 +68,7 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
       Deno.exit(1);
     }
     /** starting install laravel */
-    phase = "composer_update"
+    phase = "composer_update";
     ws.send("composer_update");
   }
 
@@ -72,7 +76,7 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
     console.log("composer_update_done...");
     console.log("preparing for execute artisan command...");
     // starting set laravel
-    phase = "php_artisan"
+    phase = "php_artisan";
     ws.send("php_artisan");
   }
   if (data == "php_artisan_done") {
@@ -169,7 +173,7 @@ async function corefunction() {
     const ws = new WebSocket("ws://192.168.91.61:8080");
     ws.onopen = () => {
       console.log("Connected to server ...");
-      ws.send(phase)
+      ws.send(phase);
     };
     ws.onmessage = (m) => handleMessage(ws, m.data);
     ws.onclose = () => logError("Disconnected from server ...");

@@ -20,7 +20,7 @@ const handler = (req: Request): Response => {
   ws.onopen = () => console.log("Connected to client ...");
   ws.onmessage = (m) => handleMessage(ws, m.data);
   ws.onerror = (e) => {
-    console.log("00000000", e);
+    console.log(e);
     createWebScoketConnection(req);
   };
   // first phase
@@ -28,12 +28,12 @@ const handler = (req: Request): Response => {
     try {
       const result = await exeEmptyDir();
       ws.send((result == 0) ? "empty_dir_done" : "empty_dir_failed");
-    } catch (_error) {
-      console.log("1111111111");
+    } catch (error) {
+      console.log(error);
       createWebScoketConnection(req);
     }
   }, {
-    once: true
+    once: true,
   });
 
   // second phase
@@ -43,12 +43,12 @@ const handler = (req: Request): Response => {
       ws.send(
         (result == 0) ? "composer_update_done" : "composer_update_failed",
       );
-    } catch (_error) {
-      console.log("222222222");
+    } catch (error) {
+      console.log(error);
       createWebScoketConnection(req);
     }
   }, {
-    once: true
+    once: true,
   });
 
   addEventListener("php_artisan", async () => {
@@ -57,11 +57,11 @@ const handler = (req: Request): Response => {
       result = await chgPermission(ws);
       ws.send((result == 0) ? "php_artisan_done" : "php_artisan_failed");
     } catch (error) {
-      console.log("33333333");
+      console.log(error);
       createWebScoketConnection(req);
     }
   }, {
-    once: true
+    once: true,
   });
 
   addEventListener("connection_close", () => {
@@ -130,7 +130,7 @@ async function exeEmptyDir(): Promise<number> {
  * execute composer update command
  * @returns 0:success 1:failed
  */
-async function exeComposerCmd(ws: WebSocket): Promise<number> {
+async function exeComposerCmd(_ws: WebSocket): Promise<number> {
   // 切換到產品目錄
   Deno.chdir("/usr/local/share/apache");
   const cwd = Deno.cwd().trim();
@@ -189,8 +189,8 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
     stdin: "piped",
   });
 
-  const keyOutput = new TextDecoder().decode(await keyCmd.output());
-  ws.send(keyOutput);
+  const _keyOutput = new TextDecoder().decode(await keyCmd.output());
+  // ws.send(keyOutput);
 
   const keyStatus = await keyCmd.status();
   console.log("[key:generate]", keyStatus);
@@ -211,8 +211,8 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
     stdin: "piped",
   });
 
-  const jwtOutput = new TextDecoder().decode(await jwtCmd.output());
-  ws.send(jwtOutput);
+  const _jwtOutput = new TextDecoder().decode(await jwtCmd.output());
+  // ws.send(jwtOutput);
 
   const jwtStatus = await jwtCmd.status();
   console.log("[jwt:secret]:", jwtStatus);
@@ -232,8 +232,8 @@ async function exeArtisanCmds(ws: WebSocket): Promise<number> {
     stdin: "piped",
   });
 
-  const i18nOutput = new TextDecoder().decode(await i18nCmd.output());
-  ws.send(i18nOutput);
+  const _i18nOutput = new TextDecoder().decode(await i18nCmd.output());
+  // ws.send(i18nOutput);
 
   const i18nStatus = await i18nCmd.status();
   console.log("[i18n:make]:", i18nStatus);
@@ -301,11 +301,11 @@ async function chgPermission(ws: WebSocket): Promise<number> {
       "/dev/null",
       "2>&1",
     ],
-    stdout: "null",
+    stdout: "piped",
     stderr: "null",
   });
   // for await (const l of readLines(chgCmd.stdout)) {
-  //   console.log("121212::", l);
+  //   ws.send(l)
   // }
   // const chgOutput = new TextDecoder().decode(await chgCmd.output());
   // console.log(chgOutput);
@@ -322,7 +322,7 @@ async function loopDir(targetPath: string): Promise<void> {
     const file = targetPath + "/" + dirEntry.name;
     /** @ts-ignore */
     const ws = this as WebSocket;
-    ws.send(file);
+    // ws.send(file);
     await Deno.chown(file, 65534, 7);
     await Deno.chmod(file, 0o750);
     if (dirEntry.isDirectory) {
