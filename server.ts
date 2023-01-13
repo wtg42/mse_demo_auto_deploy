@@ -171,7 +171,7 @@ async function exeComposerCmd(_ws: WebSocket): Promise<number> {
  * execute php artisan command(key, jwt, i18n)
  * @returns 1 | 0
  */
-async function exeArtisanCmds(ws: WebSocket): Promise<number> {
+async function exeArtisanCmds(_ws: WebSocket): Promise<number> {
   // 切換到產品目錄
   Deno.chdir("/usr/local/share/apache");
   const cwd = Deno.cwd().trim();

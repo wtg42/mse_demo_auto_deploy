@@ -1,5 +1,3 @@
-// import { Output, printNewLine } from "./util.ts";
-
 /** 定義原始碼目錄 */
 const SrcPath = "/Users/shiweiting/side_projects/snmsqr";
 
@@ -51,8 +49,8 @@ const executeRsync: () => Promise<number> = async () => {
 };
 
 async function handleMessage(ws: WebSocket, data: string): Promise<void> {
-  Deno.stdout.write(
-    new TextEncoder().encode(`SERVER >> ` + data + `\r\x1b[K`),
+  await Deno.stdout.write(
+    new TextEncoder().encode(`SERVER >> ` + data + `\n`),
   );
   // Deno.stdout.write(new TextEncoder().encode(`\x1b[K`));
   if (data === "exit") {
