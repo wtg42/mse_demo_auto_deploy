@@ -3,6 +3,8 @@ const SrcPath = "/Users/shiweiting/side_projects/snmsqr";
 
 /** 定義目前執行階段 */
 let phase = "empty_dir";
+
+let ereaseLength = 0;
 /**
  * 檢查目前的 path 並轉到正確的工作目錄
  */
@@ -11,7 +13,7 @@ const go2GitDirectory: () => void = () => {
   const cwd = Deno.cwd();
   console.log(`Change current path to %c${cwd}`, "color:blue");
 
-  // make sure current path is the same git directory
+  // make sure current path is the same as git directory
   if (cwd.trim() !== "/Users/shiweiting/side_projects/snmsqr".trim()) {
     console.log("wrong path::", cwd);
     Deno.exit();
@@ -36,8 +38,8 @@ const executeRsync: () => Promise<number> = async () => {
     stdin: "piped",
   });
 
-  const output = await p.output();
-  console.log(new TextDecoder().decode(output));
+  const _output = await p.output();
+  // console.log(new TextDecoder().decode(output));
   const status = await p.status();
   console.log(status);
   if (status.code != 0 && !status.success) {
@@ -49,10 +51,17 @@ const executeRsync: () => Promise<number> = async () => {
 };
 
 async function handleMessage(ws: WebSocket, data: string): Promise<void> {
-  await Deno.stdout.write(
-    new TextEncoder().encode(`SERVER >> ` + data + `\n`),
-  );
-  // Deno.stdout.write(new TextEncoder().encode(`\x1b[K`));
+  /** 游標移動到最後 */
+  await Deno.stdout.write(new TextEncoder().encode(`\x1b[${ereaseLength}D`));
+  /** 記憶上一句輸出的長度 */
+  ereaseLength = data.length
+  /** 清除從游標位置到該行末尾的部分 */
+  await Deno.stdout.write(new TextEncoder().encode(`\x1b[0K`));
+  /** 游標前移到開頭 */
+  await Deno.stdout.write(new TextEncoder().encode(`\x1b[0C`));
+  await Deno.stdout.write(new TextEncoder().encode(`${data}\r`),);
+
+  // await Deno.stdout.write(new TextEncoder().encode(`\r`));
   if (data === "exit") {
     console.log("deploy done!");
     ws.send("connection_close");
@@ -67,7 +76,7 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
     }
     /** starting install laravel */
     phase = "composer_update";
-    ws.send("composer_update");
+    ws.send(`${phase}`);
   }
 
   if (data == "composer_update_done") {
@@ -75,7 +84,7 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
     console.log("preparing for execute artisan command...");
     // starting set laravel
     phase = "php_artisan";
-    ws.send("php_artisan");
+    ws.send(`${phase}`);
   }
   if (data == "php_artisan_done") {
     console.log("artisan command process done...");
@@ -127,8 +136,14 @@ async function switchToMainBranch(): Promise<string> {
     stdout: "piped",
     stderr: "piped",
   });
-  await p.status();
+  const status = await p.status();
+
+  /** 錯誤處理 */
+  if (!status.success) {
+    await handleCmdErr(p);
+  }
   await p.output();
+
   p.close();
   /** 檢查是否為 main 分支 */
   return await getCurrentGitBranchName();
@@ -173,10 +188,10 @@ async function corefunction() {
       console.log("Connected to server ...");
       ws.send(phase);
     };
-    ws.onmessage = (m) => handleMessage(ws, m.data);
+    ws.onmessage = async (m) => await handleMessage(ws, m.data);
     ws.onclose = () => logError("Disconnected from server ...");
     ws.onerror = (e) => {
-      console.log("212121::", e);
+      console.log(e);
     };
   } catch (err) {
     console.log(err.message);
@@ -185,4 +200,10 @@ async function corefunction() {
   }
 }
 
+async function handleCmdErr(p: Deno.Process) {
+  const errOutput = await p.stderrOutput();
+  console.log(new TextDecoder().decode(errOutput));
+}
+
+/** entey of program */
 await corefunction();

@@ -130,7 +130,7 @@ async function exeEmptyDir(): Promise<number> {
  * execute composer update command
  * @returns 0:success 1:failed
  */
-async function exeComposerCmd(_ws: WebSocket): Promise<number> {
+async function exeComposerCmd(ws: WebSocket): Promise<number> {
   // 切換到產品目錄
   Deno.chdir("/usr/local/share/apache");
   const cwd = Deno.cwd().trim();
@@ -152,6 +152,7 @@ async function exeComposerCmd(_ws: WebSocket): Promise<number> {
 
   for await (const l of readLines(p.stderr)) {
     opBuffer.push(l);
+    ws.send(`[SERVER]: ${l}`);
   }
   console.log("[opBuffer]:", opBuffer);
 
