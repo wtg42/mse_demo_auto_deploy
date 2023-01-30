@@ -1,16 +1,14 @@
-import { serve } from "https://deno.land/std@0.166.0/http/server.ts";
-import * as fs from "https://deno.land/std@0.166.0/fs/mod.ts";
-import { readLines } from "https://deno.land/std@0.166.0/io/buffer.ts";
+import * as fs from "https://deno.land/std@0.175.0/fs/mod.ts";
+import { readLines } from "https://deno.land/std@0.175.0/io/read_lines.ts";
 
 // 監聽 port
-const port = 8080;
 const opBuffer: string[] = [];
 
 /**
  * serve handle function
  * @param req request from client
  */
-const handler = (req: Request): Response => {
+export const handler = (req: Request): Response => {
   // 檢查觸發訊息
   if (req.headers.get("upgrade") != "websocket") {
     return new Response(null, { status: 501 });
@@ -70,9 +68,6 @@ const handler = (req: Request): Response => {
 
   return response;
 };
-
-console.log(`HTTP webserver running. Access it at: ws://192.168.91.76:8080/`);
-await serve(handler, { port });
 
 /**
  * onmessage hendler trigger

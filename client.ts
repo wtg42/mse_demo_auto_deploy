@@ -1,14 +1,32 @@
-/** 定義原始碼目錄 */
-const SrcPath = "/Users/shiweiting/side_projects/snmsqr";
+/** 預設原始碼目錄 */
+export let DefaultSrcPath = "/Users/shiweiting/side_projects/snmsqr";
+/** 預設部署 IP */
+export let DefaultDes = "192.168.91.61";
 
-/** 定義目前執行階段 */
+export let ereaseLength = 0;
+
 let phase = "empty_dir";
 
-let ereaseLength = 0;
+/**
+ * 修改部署 IP 預設值
+ * @param newValue new value of destination
+ */
+export function setDefaultDes(newValue: string): void {
+  DefaultDes = newValue;
+}
+
+/**
+ * 修改本地原始碼路徑預設值
+ * @param newValue
+ */
+export function setDefaultSrcPath(newValue: string): void {
+  DefaultSrcPath = newValue;
+}
+
 /**
  * 檢查目前的 path 並轉到正確的工作目錄
  */
-const go2GitDirectory: () => void = () => {
+const go2GitDirectory: () => void = (): void => {
   Deno.chdir("/Users/shiweiting/side_projects/snmsqr");
   const cwd = Deno.cwd();
   console.log(`Change current path to %c${cwd}`, "color:blue");
@@ -32,7 +50,7 @@ const executeRsync: () => Promise<number> = async () => {
       "./",
       "root@192.168.91.61:/home/www/",
     ],
-    cwd: SrcPath,
+    cwd: DefaultSrcPath,
     stdout: "piped",
     stderr: "piped",
     stdin: "piped",
@@ -50,16 +68,24 @@ const executeRsync: () => Promise<number> = async () => {
   return 0;
 };
 
-async function handleMessage(ws: WebSocket, data: string): Promise<void> {
+/**
+ * 處理從 websocket 傳來的訊息
+ * @param ws
+ * @param data
+ */
+async function handleMessage(
+  ws: WebSocket,
+  data: string,
+): Promise<void> {
   /** 游標移動到最後 */
   await Deno.stdout.write(new TextEncoder().encode(`\x1b[${ereaseLength}D`));
   /** 記憶上一句輸出的長度 */
-  ereaseLength = data.length
+  ereaseLength = data.length;
   /** 清除從游標位置到該行末尾的部分 */
   await Deno.stdout.write(new TextEncoder().encode(`\x1b[0K`));
   /** 游標前移到開頭 */
   await Deno.stdout.write(new TextEncoder().encode(`\x1b[0C`));
-  await Deno.stdout.write(new TextEncoder().encode(`${data}\r`),);
+  await Deno.stdout.write(new TextEncoder().encode(`${data}\r`));
 
   // await Deno.stdout.write(new TextEncoder().encode(`\r`));
   if (data === "exit") {
@@ -78,7 +104,6 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
     phase = "composer_update";
     ws.send(`${phase}`);
   }
-
   if (data == "composer_update_done") {
     console.log("composer_update_done...");
     console.log("preparing for execute artisan command...");
@@ -92,86 +117,11 @@ async function handleMessage(ws: WebSocket, data: string): Promise<void> {
   }
 }
 
-function logError(msg: string) {
-  console.log(msg);
-  Deno.exit(1);
-}
-
-function _handleError(e: Event | ErrorEvent) {
-  console.log(e instanceof ErrorEvent ? e.message : e.type);
-}
-
-/**
- * get git current branch name
- */
-async function getCurrentGitBranchName(): Promise<string> {
-  const p = Deno.run({
-    cmd: [
-      "git",
-      "rev-parse",
-      "--abbrev-ref",
-      "HEAD",
-    ],
-    cwd: SrcPath,
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-  });
-  await p.status();
-  const output = new TextDecoder().decode(await p.output());
-  p.close();
-  return output;
-}
-
-/** 切換檢查是否在 main 分之 */
-async function switchToMainBranch(): Promise<string> {
-  const p = Deno.run({
-    cmd: [
-      "git",
-      "switch",
-      "main",
-    ],
-    cwd: SrcPath,
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const status = await p.status();
-
-  /** 錯誤處理 */
-  if (!status.success) {
-    await handleCmdErr(p);
-  }
-  await p.output();
-
-  p.close();
-  /** 檢查是否為 main 分支 */
-  return await getCurrentGitBranchName();
-}
-
-/** 更新 main 到最新 */
-async function gitPullFromMain() {
-  const p = Deno.run({
-    cmd: [
-      "git",
-      "pull",
-    ],
-    cwd: SrcPath,
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-  });
-  await p.status();
-  const output = await p.output();
-  console.log(new TextDecoder().decode(output));
-  p.close();
-}
-
 /**
  * Main program
  * 發送 action `empty_dir` 觸發遠端開始
  */
-async function corefunction() {
+export async function corefunction(): Promise<void> {
   try {
     const result = await switchToMainBranch();
     if (result.trim() != "main") {
@@ -200,10 +150,77 @@ async function corefunction() {
   }
 }
 
-async function handleCmdErr(p: Deno.Process) {
+/** 更新 main 到最新 */
+async function gitPullFromMain(): Promise<void> {
+  const p = Deno.run({
+    cmd: [
+      "git",
+      "pull",
+    ],
+    cwd: DefaultSrcPath,
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
+  await p.status();
+  const output = await p.output();
+  console.log(new TextDecoder().decode(output));
+  p.close();
+}
+
+export async function switchToMainBranch(): Promise<string> {
+  const p = Deno.run({
+    cmd: [
+      "git",
+      "switch",
+      "main",
+    ],
+    cwd: DefaultSrcPath,
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
+  const status = await p.status();
+
+  /** 錯誤處理 */
+  if (!status.success) {
+    await handleCmdErr(p);
+  }
+  await p.output();
+
+  p.close();
+  /** 檢查是否為 main 分支 */
+  return await getCurrentGitBranchName();
+}
+
+/**
+ * get git current branch name
+ */
+export async function getCurrentGitBranchName(): Promise<string> {
+  const p = Deno.run({
+    cmd: [
+      "git",
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD",
+    ],
+    cwd: DefaultSrcPath,
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
+  await p.status();
+  const output = new TextDecoder().decode(await p.output());
+  p.close();
+  return output;
+}
+
+function logError(msg: string) {
+  console.log(msg);
+  Deno.exit(1);
+}
+
+async function handleCmdErr(p: Deno.Process): Promise<void> {
   const errOutput = await p.stderrOutput();
   console.log(new TextDecoder().decode(errOutput));
 }
-
-/** entey of program */
-await corefunction();
