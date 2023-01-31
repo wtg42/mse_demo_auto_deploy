@@ -19,6 +19,7 @@ Deno runtime 在 BSD 環境實驗，
 
 1. client & server 都需要先使用 pkg 安裝 Deno runtime
 2. 設定好 ssh-keygen 公私鑰
-3. deno run -A server.ts (第一次未安裝套件可以添加慘數
-   --unsafely-ignore-certificate-errors)
-4. deno run -A client.ts
+3. Server: deno run -A main.ts --server 
+4. Client: deno run -A main.ts --client
+5. 其他 flag: --des_ip(指定部署機器 ip), --source_path(git 原始碼路徑)
+6. 第一次未安裝套件可以添加 flag: deno run --unsafely-ignore-certificate-errors
