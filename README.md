@@ -11,9 +11,9 @@ Deno runtime 在 BSD 環境實驗，
 - 簡單自動部署我自己機器上的 main 分支到 PM DEMO 機器上
 - 會自動清除資料夾、上傳原始碼、Composer 編譯並執行 php artisan 設定
 - stdout 透過 websocket 回傳到本機 localshot terminal 上顯示
-- 可以指定目標機器 ip 部署(未實作)
+- ES6 模組化
+- 可以指定目標機器 ip 部署
 - 整合CI/CD(未實作)
-- 模組化(未實作)
 
 ## Install
 
