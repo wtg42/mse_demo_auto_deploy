@@ -1,9 +1,6 @@
 import * as fs from "https://deno.land/std@0.175.0/fs/mod.ts";
 import { readLines } from "https://deno.land/std@0.175.0/io/read_lines.ts";
 
-// 監聽 port
-const opBuffer: string[] = [];
-
 /**
  * serve handle function
  * @param req request from client
@@ -60,10 +57,6 @@ export const handler = (req: Request): Response => {
     }
   }, {
     once: true,
-  });
-
-  addEventListener("connection_close", () => {
-    // ws.close();
   });
 
   return response;
@@ -146,10 +139,11 @@ async function exeComposerCmd(ws: WebSocket): Promise<number> {
   p.stdin.write(new TextEncoder().encode("yes\n"));
 
   for await (const l of readLines(p.stderr)) {
-    opBuffer.push(l);
-    ws.send(`[SERVER]: ${l}`);
+    // opBuffer.push(l);
+    ws.send(l);
+    Deno.stdout.write(new TextEncoder().encode(`\r\x1b[0J`));
+    Deno.stdout.write(new TextEncoder().encode(`${l}`));
   }
-  console.log("[opBuffer]:", opBuffer);
 
   const pOutput = new TextDecoder().decode(await p.output());
   console.log(pOutput);

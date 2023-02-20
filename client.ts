@@ -3,13 +3,11 @@ export let DefaultSrcPath = "/Users/shiweiting/side_projects/snmsqr";
 /** 預設部署 IP */
 export let DefaultDes = "192.168.91.61";
 
-export let ereaseLength = 0;
-
 let phase = "empty_dir";
 
 /**
  * 修改部署 IP 預設值
- * @param newValue new value of destination
+ * @param {string} newValue
  */
 export function setDefaultDes(newValue: string): void {
   DefaultDes = newValue;
@@ -17,7 +15,7 @@ export function setDefaultDes(newValue: string): void {
 
 /**
  * 修改本地原始碼路徑預設值
- * @param newValue
+ * @param {string} newValue
  */
 export function setDefaultSrcPath(newValue: string): void {
   DefaultSrcPath = newValue;
@@ -70,31 +68,16 @@ const executeRsync: () => Promise<number> = async () => {
 
 /**
  * 處理從 websocket 傳來的訊息
- * @param ws
- * @param data
+ * @param {WebSocket} ws
+ * @param {string} data
  */
 async function handleMessage(
   ws: WebSocket,
   data: string,
 ): Promise<void> {
-  /** 游標移動到最後 */
-  await Deno.stdout.write(new TextEncoder().encode(`\x1b[${ereaseLength}D`));
-  /** 記憶上一句輸出的長度 */
-  ereaseLength = data.length;
-  /** 清除從游標位置到該行末尾的部分 */
-  await Deno.stdout.write(new TextEncoder().encode(`\x1b[0K`));
-  /** 游標前移到開頭 */
-  await Deno.stdout.write(new TextEncoder().encode(`\x1b[0C`));
-  await Deno.stdout.write(new TextEncoder().encode(`${data}\r`));
-
-  // await Deno.stdout.write(new TextEncoder().encode(`\r`));
-  if (data === "exit") {
-    console.log("deploy done!");
-    ws.send("connection_close");
-    ws.close();
-    Deno.exit();
-  }
   if (data == "empty_dir_done") {
+    // 印出前換行讓游標從新的位置開始
+    console.log(`\n${data}`);
     go2GitDirectory();
     if (await executeRsync() != 0) {
       ws.close();
@@ -103,25 +86,31 @@ async function handleMessage(
     /** starting install laravel */
     phase = "composer_update";
     ws.send(`${phase}`);
+    return;
   }
   if (data == "composer_update_done") {
-    console.log("composer_update_done...");
-    console.log("preparing for execute artisan command...");
+    console.log(`\n${data}`);
+    console.log(`\npreparing for execute artisan command...`);
     // starting set laravel
     phase = "php_artisan";
     ws.send(`${phase}`);
+    return;
   }
   if (data == "php_artisan_done") {
+    console.log(`\n${data}`);
     console.log("artisan command process done...");
     ws.close();
+    return;
   }
+  Deno.stdout.write(new TextEncoder().encode(`\r\x1b[0J\x1b[s`));
+  Deno.stdout.write(new TextEncoder().encode(`\x1b[u${data}`));
 }
 
 /**
  * Main program
  * 發送 action `empty_dir` 觸發遠端開始
  */
-export async function corefunction(): Promise<void> {
+export async function corefunction():Promise<void> {
   try {
     const result = await switchToMainBranch();
     if (result.trim() != "main") {
