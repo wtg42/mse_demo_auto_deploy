@@ -1,4 +1,11 @@
-import { parse, serve } from "./deps.ts";
+import {
+  coreFunc,
+  DefaultDes,
+  DefaultSrcPath,
+  handler,
+  parse,
+  serve,
+} from "./deps.ts";
 
 const flags = parse(Deno.args, {
   boolean: ["client", "server"],
@@ -7,10 +14,6 @@ const flags = parse(Deno.args, {
 
 /** start up with client mode  */
 if (flags.client) {
-  const { corefunction, DefaultDes, DefaultSrcPath } = await import(
-    "./client.ts"
-  );
-
   if (flags.des_ip === undefined) {
     flags.des_ip = DefaultDes;
   }
@@ -21,13 +24,11 @@ if (flags.client) {
   }
 
   /** entey of program */
-  await corefunction();
+  await coreFunc();
 }
 
 /** start up with server mode */
 if (flags.server) {
-  const { handler } = await import("./server.ts");
-
   // 監聽 port
   const port = 8080;
   console.log(`HTTP webserver running.`);

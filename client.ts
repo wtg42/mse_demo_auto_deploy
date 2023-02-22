@@ -110,7 +110,7 @@ async function handleMessage(
  * Main program
  * 發送 action `empty_dir` 觸發遠端開始
  */
-export async function corefunction(): Promise<void> {
+export async function coreFunc(): Promise<void> {
   try {
     const result = await switchToMainBranch();
     if (result.trim() != "main") {
