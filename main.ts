@@ -1,5 +1,4 @@
-import { parse } from "https://deno.land/std@0.175.0/flags/mod.ts";
-import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
+import { parse, serve } from "./deps.ts";
 
 const flags = parse(Deno.args, {
   boolean: ["client", "server"],

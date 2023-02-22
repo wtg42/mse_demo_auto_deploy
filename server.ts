@@ -1,5 +1,5 @@
-import * as fs from "https://deno.land/std@0.175.0/fs/mod.ts";
-import { readLines } from "https://deno.land/std@0.175.0/io/read_lines.ts";
+import * as fs from "https://deno.land/std@0.177.0/fs/mod.ts";
+import { readLines } from "https://deno.land/std@0.177.0/io/read_lines.ts";
 
 /**
  * serve handle function

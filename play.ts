@@ -4,27 +4,30 @@ import { DefaultDes, DefaultSrcPath } from "./client.ts";
 // console.log(sessionStorage.getItem("ttt"));
 
 const p = Deno.run({
-  cmd:[
+  cmd: [
     "echo",
     "-e \x1b[6n",
   ],
-  cwd:".",
+  cwd: ".",
   stdin: "piped",
   stdout: "piped",
   stderr: "piped",
 });
 
-const output = await p.output()
+const output = await p.output();
 console.log(new TextDecoder().decode(output));
 Deno.exit();
 
 await Deno.stdout.write(new TextEncoder().encode(`\x1b[0J`));
 await sleep(1000);
-await Deno.stdout.write(new TextEncoder().encode(`\x1b[s1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890`));
+await Deno.stdout.write(
+  new TextEncoder().encode(
+    `\x1b[s1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890`,
+  ),
+);
 await sleep(1000);
 await Deno.stdout.write(new TextEncoder().encode(`\x1b[u`));
 await sleep(1000);
-
 
 Deno.exit();
 // setDefaultDes("hello")
