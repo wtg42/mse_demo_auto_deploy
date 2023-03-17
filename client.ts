@@ -25,12 +25,13 @@ export function setDefaultSrcPath(newValue: string): void {
  * 檢查目前的 path 並轉到正確的工作目錄
  */
 const go2GitDirectory: () => void = (): void => {
-  Deno.chdir("/Users/shiweiting/side_projects/snmsqr");
+  console.log(DefaultSrcPath);
+  Deno.chdir(DefaultSrcPath);
   const cwd = Deno.cwd();
   console.log(`Change current path to %c${cwd}`, "color:blue");
 
   // make sure current path is the same as git directory
-  if (cwd.trim() !== "/Users/shiweiting/side_projects/snmsqr".trim()) {
+  if (cwd.trim() !== DefaultSrcPath.trim()) {
     console.log("wrong path::", cwd);
     Deno.exit();
   }
@@ -46,7 +47,7 @@ const executeRsync: () => Promise<number> = async () => {
       "rsync",
       "-avh",
       "./",
-      "root@192.168.91.61:/home/www/",
+      `root@${DefaultDes}:/home/www/`,
     ],
     cwd: DefaultSrcPath,
     stdout: "piped",
@@ -57,7 +58,7 @@ const executeRsync: () => Promise<number> = async () => {
   const _output = await p.output();
   // console.log(new TextDecoder().decode(output));
   const status = await p.status();
-  console.log(status);
+  console.log("rsync:: ", status);
   if (status.code != 0 && !status.success) {
     p.close();
     return 1;
@@ -122,13 +123,13 @@ export async function coreFunc(): Promise<void> {
 
     await gitPullFromMain();
 
-    const ws = new WebSocket("ws://192.168.91.61:8080");
+    const ws = new WebSocket(`ws://${DefaultDes}:8080`);
     ws.onopen = () => {
       console.log("Connected to server ...");
       ws.send(phase);
     };
     ws.onmessage = async (m) => await handleMessage(ws, m.data);
-    ws.onclose = () => logError("Disconnected from server ...");
+    ws.onclose = () => console.log("Disconnected from server ...");
     ws.onerror = (e) => {
       console.log(e);
     };

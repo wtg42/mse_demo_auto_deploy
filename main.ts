@@ -1,12 +1,8 @@
-import {
-  coreFunc,
-  DefaultDes,
-  DefaultSrcPath,
-  handler,
-  parse,
-  serve,
-} from "./deps.ts";
-
+import { parse, serve } from "./deps.ts";
+export const { handler } = await import("./server.ts");
+export const { coreFunc, setDefaultDes, setDefaultSrcPath } = await import(
+  "./client.ts"
+);
 const flags = parse(Deno.args, {
   boolean: ["client", "server"],
   string: ["des_ip", "source_path"],
@@ -14,13 +10,13 @@ const flags = parse(Deno.args, {
 
 /** start up with client mode  */
 if (flags.client) {
-  if (flags.des_ip === undefined) {
-    flags.des_ip = DefaultDes;
+  if (flags.des_ip !== undefined) {
+    setDefaultDes(flags.des_ip);
   }
 
-  /** 部署機器沒指定採用預設值 */
-  if (flags.source_path === undefined) {
-    flags.source_path = DefaultSrcPath;
+  /** 用戶指定 git 路徑 */
+  if (flags.source_path !== undefined) {
+    setDefaultSrcPath(flags.source_path);
   }
 
   /** entey of program */

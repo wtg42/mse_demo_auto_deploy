@@ -1,4 +1,5 @@
 import { DefaultDes, DefaultSrcPath } from "./client.ts";
+import { printNewLine, sleep } from "./util.ts";
 
 // sessionStorage.setItem("ttt", "12");
 // console.log(sessionStorage.getItem("ttt"));
@@ -38,7 +39,6 @@ console.log(DefaultDes);
 // Deno.exit();
 
 // --------------------------------------------------
-import { printNewLine, sleep } from "./util.ts";
 
 class Output {
   #beforeLength = 0;

@@ -1,5 +1,4 @@
 import {
-  assert,
   assertEquals,
   assertExists,
   handler,
