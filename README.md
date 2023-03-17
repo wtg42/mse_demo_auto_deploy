@@ -13,7 +13,7 @@ Deno runtime 在 FreeBSD 環境實驗，
 - stdout 透過 websocket 回傳到本機 localshot terminal 上顯示
 - ES6 模組化
 - 可以指定目標機器 ip 跟本機路徑，使用 --des_ip, --source_path CLI flag
-- 整合CI/CD (未實作)
+- 整合 GitLab Runner 部署 DEMO 機專案程式 <br /> Runner: Ubuntu 22.04 Executor Type: shell
 
 ## Install
 
